@@ -1,0 +1,6 @@
+{
+  "parent": "rezerogenesismod:block/lugunica_paved_road",
+  "textures": {
+    "layer0": "rezerogenesismod:block/lugunica_paved_road"
+  }
+}
