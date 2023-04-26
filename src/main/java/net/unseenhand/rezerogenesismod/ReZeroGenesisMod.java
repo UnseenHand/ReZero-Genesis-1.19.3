@@ -67,9 +67,18 @@ public class ReZeroGenesisMod {
                 event.accept(ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK);
             }
 
+            // Add to 'Ingredients' tab
+            if (event.getTab() == CreativeModeTabs.INGREDIENTS) {
+                event.accept(ModItems.COBBLESTONE_MIXTURE_ITEM);
+            }
+
             // Add to 'Re:Zero Genesis' tab
             if (event.getTab() == ModCreativeModeTabs.Re_Zero_Genesis_Tab) {
+                // Blocks
                 event.accept(ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK);
+
+                //Items
+                event.accept(ModItems.COBBLESTONE_MIXTURE_ITEM);
             }
         }
     }
