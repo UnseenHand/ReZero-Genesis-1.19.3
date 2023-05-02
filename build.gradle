@@ -4,7 +4,7 @@ plugins {
     id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
-version = '1.19.3-0.0.2.0'
+version = '1.19.3-0.0.3.0'
 group = 'net.unseenhand.rezerogenesismod' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'rezerogenesismod'
 

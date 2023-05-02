@@ -21,8 +21,11 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.unseenhand.rezerogenesismod.block.events.BlockEventHandler;
+import net.unseenhand.rezerogenesismod.blockentity.ModBlockEntities;
+import net.unseenhand.rezerogenesismod.block.MixingApparatusBlock;
 import net.unseenhand.rezerogenesismod.items.ModCreativeModeTabs;
-import net.unseenhand.rezerogenesismod.blocks.ModBlocks;
+import net.unseenhand.rezerogenesismod.block.ModBlocks;
 import net.unseenhand.rezerogenesismod.items.ModItems;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -43,9 +46,12 @@ public class ReZeroGenesisMod {
 
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
+        // MinecraftForge.EVENT_BUS.register(MultiblockControllerBase.MultiblockEvents.class);
+        MinecraftForge.EVENT_BUS.register(BlockEventHandler.class);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -64,7 +70,7 @@ public class ReZeroGenesisMod {
         public static void buildContents(@NotNull CreativeModeTabEvent.BuildContents event) {
             // Add to 'Building Blocks' tab
             if (event.getTab() == CreativeModeTabs.BUILDING_BLOCKS) {
-                event.accept(ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK);
+                event.accept(ModBlocks.LUGUNICA_PAVED_ROAD);
             }
 
             // Add to 'Ingredients' tab
@@ -75,7 +81,7 @@ public class ReZeroGenesisMod {
             // Add to 'Re:Zero Genesis' tab
             if (event.getTab() == ModCreativeModeTabs.Re_Zero_Genesis_Tab) {
                 // Blocks
-                event.accept(ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK);
+                event.accept(ModBlocks.LUGUNICA_PAVED_ROAD);
 
                 //Items
                 event.accept(ModItems.COBBLESTONE_MIXTURE_ITEM);
@@ -101,7 +107,7 @@ public class ReZeroGenesisMod {
             );
 
             // Check if the broken block is the 'Lugunica Paved Road' block and the tool used is appropriate
-            if (block == ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK.get() && player.hasCorrectToolForDrops(blockState)) {
+            if (block == ModBlocks.LUGUNICA_PAVED_ROAD.get() && player.hasCorrectToolForDrops(blockState)) {
                 Item item = block.asItem();
 
                 ItemStack stack = new ItemStack(item, 1);
@@ -125,7 +131,7 @@ public class ReZeroGenesisMod {
 
                 // Checking if the exploded block is 'Lugunica Paved Road'
                 // Which has the 75% chance of dropping itself
-                if (block == ModBlocks.LUGUNICA_PAVED_ROAD_BLOCK.get() && level.random.nextFloat() < .75F) {
+                if (block == ModBlocks.LUGUNICA_PAVED_ROAD.get() && level.random.nextFloat() < .75F) {
                     Item item = block.asItem();
 
                     ItemStack stack = new ItemStack(item, 1);
