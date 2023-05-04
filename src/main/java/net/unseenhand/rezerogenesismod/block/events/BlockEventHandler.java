@@ -42,7 +42,7 @@ public class BlockEventHandler {
                 // If enough blocks -> structure should be formed
                 // Maybe should be called every some ticks
 
-                if (multiblock.isMultiblockFormed()) {
+                if (multiblock.isMultiblockFull()) {
                     // the block placed is part of a multi-block structure
                     // do something here, e.g. mark the block as part of the structure
                     multiblock.markAsFormed(); // Should trigger the multiblock creation

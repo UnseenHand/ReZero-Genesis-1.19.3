@@ -1,0 +1,6 @@
+{
+  "parent": "rezerogenesismod:block/mixing_apparatus",
+  "textures": {
+    "layer0": "rezerogenesismod:block/mixing_apparatus"
+  }
+}

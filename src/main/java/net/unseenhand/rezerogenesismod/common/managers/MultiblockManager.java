@@ -1,21 +1,96 @@
 package net.unseenhand.rezerogenesismod.common.managers;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraftforge.event.level.BlockEvent;
-import net.unseenhand.rezerogenesismod.blockentity.MixingApparatus;
-import net.unseenhand.rezerogenesismod.blockentity.MultiblockBlockEntity;
-import net.unseenhand.rezerogenesismod.blockentity.MixingApparatusController;
-import net.unseenhand.rezerogenesismod.blockentity.DirectionState;
+import net.unseenhand.rezerogenesismod.blockentity.*;
 import net.unseenhand.rezerogenesismod.block.ModBlocks;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import static net.unseenhand.rezerogenesismod.block.MultiblockBlock.MULTIBLOCK_PART_TYPE;
+
 public class MultiblockManager {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    public static void assignBlockState(BlockEntity blockEntity, Level level, UUID Id) {
+        if (blockEntity instanceof MixingApparatus mixingApparatus) {
+            if (mixingApparatus.getID() == Id) {
+                // Change the state of the block (that fills up the structure)
+                BlockPos pos = mixingApparatus.getBlockPos();
+                BlockState state = mixingApparatus.getBlockState();
+                state = state.setValue(MULTIBLOCK_PART_TYPE, EnumMultiblockPartType.BLOCK);
+                level.setBlockAndUpdate(pos, state); // Maybe
+
+                LOGGER.info(mixingApparatus.getBlockState().getValue(MULTIBLOCK_PART_TYPE).toString());
+            }
+        } else if (blockEntity instanceof MixingApparatusController mixingApparatusController) {
+            if (mixingApparatusController.getID() == Id) {
+                // Change the state of the controller
+                BlockPos controllerPos = mixingApparatusController.getBlockPos();
+                BlockState controllerState = mixingApparatusController.getBlockState();
+                controllerState = controllerState.setValue(MULTIBLOCK_PART_TYPE, EnumMultiblockPartType.CONTROLLER);
+                level.setBlockAndUpdate(controllerPos, controllerState); // Maybe
+
+                LOGGER.info(mixingApparatusController.getBlockState().getValue(MULTIBLOCK_PART_TYPE).toString());
+            }
+        }
+    }
+
+    private static void closeNeighborSides(Level level, MultiblockBlockEntity target) {
+        ArrayList<Direction> connectedDirections = new ArrayList<>();
+        ArrayList<Direction> closedDirections = new ArrayList<>();
+
+        getNotDefaultDirections(connectedDirections, closedDirections, target);
+
+        for (Direction connectedDirection : connectedDirections) {
+            // Gets the block entity of the relatively connected multiblock block
+            BlockPos connectedPos = target.getBlockPos().relative(connectedDirection);
+            BlockEntity connectedEntity = level.getBlockEntity(connectedPos);
+
+            // Gets the connected direction of the 'connectedEntity' connectedDirection.getOpposite()
+            // Should also create arrays for
+            ArrayList<Direction> neighbourConnectedDirections = new ArrayList<>();
+            ArrayList<Direction> neighbourClosedDirections = new ArrayList<>();
+
+            if (connectedEntity instanceof MultiblockBlockEntity multiblockTileEntity) {
+                // Fills the array with the appropriate directions
+                getNotDefaultDirections(neighbourConnectedDirections,
+                        neighbourClosedDirections,
+                        multiblockTileEntity);
+
+                for (Direction neighbourConnectedDirection : neighbourConnectedDirections) {
+
+                    ArrayList<Direction> directionsCopy = new ArrayList<>(neighbourClosedDirections);
+                    directionsCopy.remove(neighbourConnectedDirection.getOpposite());
+
+                    // Represents every single neighbour entities by the directions that are connected
+                    // Used to close the directions that are not possible to extend the multiblock through
+                    BlockPos relativePos = connectedEntity.getBlockPos().relative(neighbourConnectedDirection);
+                    BlockEntity relativeBlockEntity = level.getBlockEntity(relativePos);
+
+                    if (relativeBlockEntity instanceof MultiblockBlockEntity relative) {
+                        // HERE IS THE ISSUE!!!
+                        for (Direction direction : directionsCopy) {
+                            relative.setCustomProperty(direction, DirectionState.CLOSED);
+                        }
+                    }
+
+                    // Set changes
+                    multiblockTileEntity.setChanged();
+                }
+            }
+        }
+    }
 
     // Returns the ID that was set to the target block entity
     public static UUID constraintTargetAndNeighbours(BlockEvent.EntityPlaceEvent event,
@@ -90,6 +165,37 @@ public class MultiblockManager {
         return Id;
     }
 
+    public static List<BlockEntity> findAll(Level level, BlockEntity controllerEntity) {
+        List<BlockEntity> blockEntities = new ArrayList<>();
+
+        if (level != null) {
+            // Get the chunk that contains that block entity
+            ChunkAccess chunk = level.getChunk(controllerEntity.getBlockPos());
+
+            // Iterate over the block entities in that chunk and find the ones with the desired ID
+            for (BlockPos pos : chunk.getBlockEntitiesPos()) {
+                BlockEntity blockEntity = level.getBlockEntity(pos);
+                blockEntities.add(blockEntity);
+            }
+        }
+
+        return blockEntities;
+    }
+
+    // Gets closed and connected directions form the block entity and adds to arrays
+    private static void getNotDefaultDirections(ArrayList<Direction> connected,
+                                                ArrayList<Direction> closed,
+                                                MultiblockBlockEntity blockEntity) {
+        for (Direction direction : Direction.values()) {
+            DirectionState property = blockEntity.getCustomProperty(direction);
+            if (property == DirectionState.CONNECTED) {
+                connected.add(direction);
+            } else if (property == DirectionState.CLOSED) {
+                closed.add(direction);
+            }
+        }
+    }
+
     private static void setProperties(Level level,
                                       Direction direction,
                                       MultiblockBlockEntity target,
@@ -119,65 +225,5 @@ public class MultiblockManager {
         // Setting changes
         target.setChanged();
         neighbour.setChanged();
-    }
-
-    private static void closeNeighborSides(Level level, MultiblockBlockEntity target) {
-        ArrayList<Direction> connectedDirections = new ArrayList<>();
-        ArrayList<Direction> closedDirections = new ArrayList<>();
-
-        getNotDefaultDirections(connectedDirections, closedDirections, target);
-
-        for (Direction connectedDirection : connectedDirections) {
-            // Gets the block entity of the relatively connected multiblock block
-            BlockPos connectedPos = target.getBlockPos().relative(connectedDirection);
-            BlockEntity connectedEntity = level.getBlockEntity(connectedPos);
-
-            // Gets the connected direction of the 'connectedEntity' connectedDirection.getOpposite()
-            // Should also create arrays for
-            ArrayList<Direction> neighbourConnectedDirections = new ArrayList<>();
-            ArrayList<Direction> neighbourClosedDirections = new ArrayList<>();
-
-            if (connectedEntity instanceof MultiblockBlockEntity multiblockTileEntity) {
-                // Fills the array with the appropriate directions
-                getNotDefaultDirections(neighbourConnectedDirections,
-                        neighbourClosedDirections,
-                        multiblockTileEntity);
-
-                for (Direction neighbourConnectedDirection : neighbourConnectedDirections) {
-
-                    ArrayList<Direction> directionsCopy = new ArrayList<>(neighbourClosedDirections);
-                    directionsCopy.remove(neighbourConnectedDirection.getOpposite());
-
-                    // Represents every single neighbour entities by the directions that are connected
-                    // Used to close the directions that are not possible to extend the multiblock through
-                    BlockPos relativePos = connectedEntity.getBlockPos().relative(neighbourConnectedDirection);
-                    BlockEntity relativeBlockEntity = level.getBlockEntity(relativePos);
-
-                    if (relativeBlockEntity instanceof MultiblockBlockEntity relative) {
-                        // HERE IS THE ISSUE!!!
-                        for (Direction direction : directionsCopy) {
-                            relative.setCustomProperty(direction, DirectionState.CLOSED);
-                        }
-                    }
-
-                    // Set changes
-                    multiblockTileEntity.setChanged();
-                }
-            }
-        }
-    }
-
-    // Gets closed and connected directions form the block entity and adds to arrays
-    private static void getNotDefaultDirections(ArrayList<Direction> connected,
-                                                ArrayList<Direction> closed,
-                                                MultiblockBlockEntity blockEntity) {
-        for (Direction direction : Direction.values()) {
-            DirectionState property = blockEntity.getCustomProperty(direction);
-            if (property == DirectionState.CONNECTED) {
-                connected.add(direction);
-            } else if (property == DirectionState.CLOSED) {
-                closed.add(direction);
-            }
-        }
     }
 }

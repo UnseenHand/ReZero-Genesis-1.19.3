@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "multiblock_block_type=normal": {
+      "model": "rezerogenesismod:block/mixing_apparatus_controller"
+    },
+    "multiblock_block_type=controller": {
+      "model": "rezerogenesismod:block/mixing_apparatus_controller_formed"
+    }
+  }
+}

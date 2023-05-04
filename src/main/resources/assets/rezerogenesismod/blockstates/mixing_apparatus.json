@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "multiblock_block_type=normal": {
+      "model": "rezerogenesismod:block/mixing_apparatus"
+    },
+    "multiblock_block_type=block": {
+      "model": "rezerogenesismod:block/mixing_apparatus_formed"
+    }
+  }
+}
