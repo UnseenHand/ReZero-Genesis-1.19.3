@@ -10,7 +10,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.unseenhand.rezerogenesismod.ReZeroGenesisMod;
-import net.unseenhand.rezerogenesismod.items.ModItems;
+import net.unseenhand.rezerogenesismod.item.ModItems;
 
 import java.util.function.Supplier;
 

@@ -1,0 +1,16 @@
+{
+  "type": "rezerogenesismod:mixing",
+  "input": [
+    {
+      "item": "rezerogenesismod:cobblestone_mixture"
+    }
+  ],
+  "fluid": {
+    "FluidName": "minecraft:water",
+    "Amount": 200
+  },
+  "output": {
+    "count": 1,
+    "item": "rezerogenesismod:formed_cobblestone_mixture"
+  }
+}

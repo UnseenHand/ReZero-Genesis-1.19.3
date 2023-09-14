@@ -1,4 +1,4 @@
-package net.unseenhand.rezerogenesismod.common.managers;
+package net.unseenhand.rezerogenesismod.common.manager;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
@@ -6,45 +6,20 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraftforge.event.level.BlockEvent;
-import net.unseenhand.rezerogenesismod.blockentity.*;
 import net.unseenhand.rezerogenesismod.block.ModBlocks;
+import net.unseenhand.rezerogenesismod.block.entity.DirectionState;
+import net.unseenhand.rezerogenesismod.block.entity.MixingApparatus;
+import net.unseenhand.rezerogenesismod.block.entity.MixingApparatusController;
+import net.unseenhand.rezerogenesismod.block.entity.MultiblockBlockEntity;
+import net.unseenhand.rezerogenesismod.saveddata.MultiblocksData;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
-
-import static net.unseenhand.rezerogenesismod.block.MultiblockBlock.MULTIBLOCK_PART_TYPE;
 
 public class MultiblockManager {
     private static final Logger LOGGER = LogUtils.getLogger();
-
-    public static void assignBlockState(BlockEntity blockEntity, Level level, UUID Id) {
-        if (blockEntity instanceof MixingApparatus mixingApparatus) {
-            if (mixingApparatus.getID() == Id) {
-                // Change the state of the block (that fills up the structure)
-                BlockPos pos = mixingApparatus.getBlockPos();
-                BlockState state = mixingApparatus.getBlockState();
-                state = state.setValue(MULTIBLOCK_PART_TYPE, EnumMultiblockPartType.BLOCK);
-                level.setBlockAndUpdate(pos, state); // Maybe
-
-                LOGGER.info(mixingApparatus.getBlockState().getValue(MULTIBLOCK_PART_TYPE).toString());
-            }
-        } else if (blockEntity instanceof MixingApparatusController mixingApparatusController) {
-            if (mixingApparatusController.getID() == Id) {
-                // Change the state of the controller
-                BlockPos controllerPos = mixingApparatusController.getBlockPos();
-                BlockState controllerState = mixingApparatusController.getBlockState();
-                controllerState = controllerState.setValue(MULTIBLOCK_PART_TYPE, EnumMultiblockPartType.CONTROLLER);
-                level.setBlockAndUpdate(controllerPos, controllerState); // Maybe
-
-                LOGGER.info(mixingApparatusController.getBlockState().getValue(MULTIBLOCK_PART_TYPE).toString());
-            }
-        }
-    }
 
     private static void closeNeighborSides(Level level, MultiblockBlockEntity target) {
         ArrayList<Direction> connectedDirections = new ArrayList<>();
@@ -93,28 +68,73 @@ public class MultiblockManager {
     }
 
     // Returns the ID that was set to the target block entity
-    public static UUID constraintTargetAndNeighbours(BlockEvent.EntityPlaceEvent event,
-                                                     Level level,
-                                                     Block block,
-                                                     BlockPos pos) {
+
+    public static UUID constraintTargetAndNeighbours(BlockEvent.EntityPlaceEvent pEvent,
+                                                     Level pLevel,
+                                                     BlockPos pPos) {
         // Counter to decide whether to create new multiblock structure or not
         int neighbourCounter = 0;
         UUID Id = null;
+        Block targetBlock = pLevel.getBlockState(pPos).getBlock();
 
+        // The ELSE is wrong
         // Set sides' connections for the neighbours and the target block itself
         for (Direction direction : Direction.values()) {
-            BlockPos neighbourPos = pos.relative(direction);
-            Block neighbourBlock = level.getBlockState(neighbourPos).getBlock();
+            BlockPos neighbourPos = pPos.relative(direction);
+            Block neighbourBlock = pLevel.getBlockState(neighbourPos).getBlock();
 
             // Neighbour is the same block type as the target or is 'master'
-            if (neighbourBlock == block ||
-                    neighbourBlock == ModBlocks.MIXING_APPARATUS_CONTROLLER.get()) {
+            if (neighbourBlock == ModBlocks.MIXING_APPARATUS.get()) {
+
+                // If there is at least 1 controller
+                BlockPos[] blockPositions = MultiblocksData.MAP.get(Id);
+
+                if (blockPositions != null) {
+                    // Check every single block position for the MController block
+                    for (BlockPos blockPos : blockPositions) {
+                        BlockEntity blockEntity = pLevel.getBlockEntity(blockPos);
+
+                        if (blockEntity instanceof MixingApparatusController mController) {
+                            // Pass
+                            // Do other connections
+                            UUID controllerId = mController.getID();
+
+                            BlockEntity target = pLevel.getBlockEntity(pPos);
+
+                            if (target instanceof MixingApparatus mBlock) {
+                                // Set the UUID for the MBlock that is now the part of the controller
+                                // Thus it is the part of the whole multiblock structure
+                                mBlock.setID(controllerId);
+
+                                // Saving the data
+                                MultiblocksData data = MultiblocksData.retrieveData(pLevel);
+                                // TODO: NOT RIGHT
+                                MultiblocksData.MAP.put(controllerId, new BlockPos[]{});
+                                data.setDirty();
+                            }
+                        }
+                    }
+                }
+
+                // Set properties anyway
+                // Getting block entities
+                MultiblockBlockEntity targetBlockEntity = (MultiblockBlockEntity) pLevel.getBlockEntity(pPos);
+                MultiblockBlockEntity neighbourBlockEntity = (MultiblockBlockEntity) pLevel.getBlockEntity(neighbourPos);
+
+                setProperties(pLevel, direction, targetBlockEntity, neighbourBlockEntity, neighbourCounter);
+
                 // Increase counter of neighbours
                 neighbourCounter++;
+            } else if (targetBlock == neighbourBlock &&
+                    neighbourBlock == ModBlocks.MIXING_APPARATUS_CONTROLLER.get()) {
+                Id = createNewMultiblockInstance(pLevel, pPos);
 
+                // Increase counter of neighbours
+                neighbourCounter++;
+            } else if (neighbourBlock == ModBlocks.MIXING_APPARATUS_CONTROLLER.get()) {
                 // Getting block entities
-                MultiblockBlockEntity targetBlockEntity = (MultiblockBlockEntity) level.getBlockEntity(pos);
-                MultiblockBlockEntity neighbourBlockEntity = (MultiblockBlockEntity) level.getBlockEntity(neighbourPos);
+                MultiblockBlockEntity targetBlockEntity = (MultiblockBlockEntity) pLevel.getBlockEntity(pPos);
+                MultiblockBlockEntity neighbourBlockEntity = (MultiblockBlockEntity) pLevel.getBlockEntity(neighbourPos);
 
 
                 // Getting target and neighbour
@@ -123,71 +143,66 @@ public class MultiblockManager {
                         // ID assigning was here
                         // Getting the multiblock entity by the ID
                         Id = neighbourBlockEntity.getID();
-                        if (Id == null && event.isCancelable()) { // Maybe should delete it
-                            event.setCanceled(true);
+                        if (Id == null && pEvent.isCancelable()) { // Maybe should delete it
+                            pEvent.setCanceled(true);
                         }
                         targetBlockEntity.setID(Id);
                     }
 
-                    setProperties(level, direction, targetBlockEntity, neighbourBlockEntity, neighbourCounter);
+                    setProperties(pLevel, direction, targetBlockEntity, neighbourBlockEntity, neighbourCounter);
                 }
+
+                // Increase counter of neighbours
+                neighbourCounter++;
             }
         }
 
-        // New instance of the multiblock creation (ID)
         if (neighbourCounter == 0) {
-            // Get the multiblock 'master' or 'fill' block entity
-            // master - multiblock controller
-            // fill - multiblock block that fills the structure
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-
-            if (blockEntity instanceof MixingApparatus fill) {
-                // Set the ID for the filling block
-                Id = UUID.randomUUID();
-                fill.setID(Id);
-
-                // Set changes
-                fill.setChanged();
-            } else if (blockEntity instanceof MixingApparatusController master) {
-                // Set the ID for the master block
-                Id = UUID.randomUUID();
-                master.setID(Id);
-
-                // Map (Add) to all entities in the list
-                // MappedList should be available through the whole lifecycle of the program
-                MixingApparatusController.MAP.put(Id, master);
-
-                // Set changes
-                master.setChanged();
+            if (targetBlock == ModBlocks.MIXING_APPARATUS.get()) {
+                // Do something
+                // That means that the block has no neighbours and also is the Mixing Apparatus Block
+            } else if (targetBlock == ModBlocks.MIXING_APPARATUS_CONTROLLER.get()) {
+                // Create new instance of the Mixing Apparatus Multiblock through the Controller
+                Id = createNewMultiblockInstance(pLevel, pPos);
             }
         }
 
         return Id;
     }
+    // FIXME: NEED A DETAILED REVIEW
 
-    public static List<BlockEntity> findAll(Level level, BlockEntity controllerEntity) {
-        List<BlockEntity> blockEntities = new ArrayList<>();
+    private static UUID createNewMultiblockInstance(Level pLevel, BlockPos pPos) {
+        // Get the multiblock 'master' or 'mixingApparatus' block entity
+        // master - multiblock controller
+        // mixingApparatus - multiblock block that fills the structure
+        BlockEntity blockEntity = pLevel.getBlockEntity(pPos);
+        UUID uuid = UUID.randomUUID();
 
-        if (level != null) {
-            // Get the chunk that contains that block entity
-            ChunkAccess chunk = level.getChunk(controllerEntity.getBlockPos());
+        if (blockEntity instanceof MixingApparatusController mixingApparatusController) {
+            // Set the ID for the mixingApparatusController block
+            mixingApparatusController.setID(uuid);
 
-            // Iterate over the block entities in that chunk and find the ones with the desired ID
-            for (BlockPos pos : chunk.getBlockEntitiesPos()) {
-                BlockEntity blockEntity = level.getBlockEntity(pos);
-                blockEntities.add(blockEntity);
-            }
+            // Get the MAP data
+            MultiblocksData multiblocksSD = MultiblocksData.retrieveData(pLevel);
+            // Map (Add) to all entities in the list
+            // MappedList should be available through the whole lifecycle of the program
+            BlockPos controllerPos = mixingApparatusController.getBlockPos();
+            MultiblocksData.MAP.put(uuid, new BlockPos[]{controllerPos});
+
+            // Set changes
+            mixingApparatusController.setChanged();
+            multiblocksSD.setDirty();
         }
 
-        return blockEntities;
+        return uuid;
     }
-
     // Gets closed and connected directions form the block entity and adds to arrays
+
     private static void getNotDefaultDirections(ArrayList<Direction> connected,
                                                 ArrayList<Direction> closed,
                                                 MultiblockBlockEntity blockEntity) {
         for (Direction direction : Direction.values()) {
-            DirectionState property = blockEntity.getCustomProperty(direction);
+            DirectionState property = blockEntity.getDSProperty(direction);
             if (property == DirectionState.CONNECTED) {
                 connected.add(direction);
             } else if (property == DirectionState.CLOSED) {
@@ -195,7 +210,6 @@ public class MultiblockManager {
             }
         }
     }
-
     private static void setProperties(Level level,
                                       Direction direction,
                                       MultiblockBlockEntity target,
@@ -205,7 +219,7 @@ public class MultiblockManager {
         Direction oppositeDirection = direction.getOpposite();
 
         // Not set properties (conn, clos) if you cannot access the structure
-        DirectionState neighbourProperty = neighbour.getCustomProperty(oppositeDirection);
+        DirectionState neighbourProperty = neighbour.getDSProperty(oppositeDirection);
         if (neighbourProperty != DirectionState.OPENED) {
             return;
         }

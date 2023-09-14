@@ -1,4 +1,4 @@
-package net.unseenhand.rezerogenesismod.blockentity;
+package net.unseenhand.rezerogenesismod.block.entity;
 
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;

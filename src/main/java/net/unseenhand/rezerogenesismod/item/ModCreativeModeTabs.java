@@ -1,4 +1,4 @@
-package net.unseenhand.rezerogenesismod.items;
+package net.unseenhand.rezerogenesismod.item;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;

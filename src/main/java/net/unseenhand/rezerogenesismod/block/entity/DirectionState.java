@@ -1,4 +1,4 @@
-package net.unseenhand.rezerogenesismod.blockentity;
+package net.unseenhand.rezerogenesismod.block.entity;
 
 import net.minecraft.util.StringRepresentable;
 import org.jetbrains.annotations.Contract;
@@ -8,6 +8,10 @@ public enum DirectionState implements StringRepresentable {
     OPENED,
     CLOSED,
     CONNECTED;
+
+    public static DirectionState fromIntDataValue(int pIndex) {
+        return DirectionState.values()[pIndex];
+    }
 
     @Contract(pure = true)
     @NotNull

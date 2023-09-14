@@ -1,6 +1,7 @@
 package net.unseenhand.rezerogenesismod;
 
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -21,12 +22,16 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.unseenhand.rezerogenesismod.block.events.BlockEventHandler;
-import net.unseenhand.rezerogenesismod.blockentity.ModBlockEntities;
-import net.unseenhand.rezerogenesismod.block.MixingApparatusBlock;
-import net.unseenhand.rezerogenesismod.items.ModCreativeModeTabs;
 import net.unseenhand.rezerogenesismod.block.ModBlocks;
-import net.unseenhand.rezerogenesismod.items.ModItems;
+import net.unseenhand.rezerogenesismod.block.event.BlockEventsHandler;
+import net.unseenhand.rezerogenesismod.block.entity.ModBlockEntities;
+import net.unseenhand.rezerogenesismod.client.gui.menu.ModMenuTypes;
+import net.unseenhand.rezerogenesismod.client.gui.screen.MixingApparatusScreen;
+import net.unseenhand.rezerogenesismod.item.ModCreativeModeTabs;
+import net.unseenhand.rezerogenesismod.item.ModItems;
+import net.unseenhand.rezerogenesismod.item.crafting.ModRecipeSerializers;
+import net.unseenhand.rezerogenesismod.item.crafting.ModRecipeTypes;
+import net.unseenhand.rezerogenesismod.network.ModMessages;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -42,27 +47,32 @@ public class ReZeroGenesisMod {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
 
         ModBlocks.register(modEventBus);
-        ModItems.register(modEventBus);
         ModBlockEntities.register(modEventBus);
 
-        // Register ourselves for server and other game events we are interested in
+        ModItems.register(modEventBus);
+
+        ModMenuTypes.register(modEventBus);
+        ModRecipeTypes.register(modEventBus);
+
+        ModRecipeSerializers.register(modEventBus);
+
+        modEventBus.addListener(this::commonSetup);
+
         MinecraftForge.EVENT_BUS.register(this);
-        // MinecraftForge.EVENT_BUS.register(MultiblockControllerBase.MultiblockEvents.class);
-        MinecraftForge.EVENT_BUS.register(BlockEventHandler.class);
+        MinecraftForge.EVENT_BUS.register(BlockEventsHandler.class);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-
+        event.enqueueWork(ModMessages::register);
     }
 
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
-
+            MenuScreens.register(ModMenuTypes.MIXING_APPARATUS_MENU.get(), MixingApparatusScreen::new);
         }
 
         // Creative tab build
@@ -75,16 +85,20 @@ public class ReZeroGenesisMod {
 
             // Add to 'Ingredients' tab
             if (event.getTab() == CreativeModeTabs.INGREDIENTS) {
-                event.accept(ModItems.COBBLESTONE_MIXTURE_ITEM);
+                event.accept(ModItems.COBBLESTONE_MIXTURE);
+                event.accept(ModItems.FORMED_COBBLESTONE_MIXTURE_ITEM);
             }
 
             // Add to 'Re:Zero Genesis' tab
             if (event.getTab() == ModCreativeModeTabs.Re_Zero_Genesis_Tab) {
                 // Blocks
                 event.accept(ModBlocks.LUGUNICA_PAVED_ROAD);
+                event.accept(ModBlocks.MIXING_APPARATUS);
+                event.accept(ModBlocks.MIXING_APPARATUS_CONTROLLER);
 
                 //Items
-                event.accept(ModItems.COBBLESTONE_MIXTURE_ITEM);
+                event.accept(ModItems.COBBLESTONE_MIXTURE);
+                event.accept(ModItems.FORMED_COBBLESTONE_MIXTURE_ITEM);
             }
         }
     }
@@ -101,11 +115,6 @@ public class ReZeroGenesisMod {
 
             Block block = blockState.getBlock();
 
-            LOGGER.info("Player " + player.getName().getString() +
-                    " broke the \"" + block.getName().getString() +
-                    "\" block."
-            );
-
             // Check if the broken block is the 'Lugunica Paved Road' block and the tool used is appropriate
             if (block == ModBlocks.LUGUNICA_PAVED_ROAD.get() && player.hasCorrectToolForDrops(blockState)) {
                 Item item = block.asItem();
@@ -115,8 +124,6 @@ public class ReZeroGenesisMod {
                 Block.popResource((Level) level, pos, stack);
 
                 LOGGER.info("The \"" + item.getName(stack).getString() + "\" item has been dropped!");
-            } else {
-                LOGGER.info("The tool, block was broken with, is not appropriate! Item hasn't been dropped!");
             }
         }
 

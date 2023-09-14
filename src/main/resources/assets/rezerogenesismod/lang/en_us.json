@@ -5,5 +5,9 @@
 
   "creativemodetab.re_zero_genesis_tab": "Re:Zero Genesis",
 
-  "item.rezerogenesismod.cobblestone_mixture": "Cobblestone Mixture"
+  "item.rezerogenesismod.cobblestone_mixture": "Cobblestone Mixture",
+  "item.rezerogenesismod.formed_cobblestone_mixture": "Formed Cobblestone Mixture",
+
+  "rezerogenesismod.tooltip.liquid.amount.with.capacity": "%s / %s mB",
+  "rezerogenesismod.tooltip.liquid.amount": "%s mB"
 }
